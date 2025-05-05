@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KYOKO-IA:GEMINI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      margin: 0;
+      padding: 10px;
+      background: #000000; /* fundo preto */
+      color: #ffffff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    #chat-container {
+      max-width: 800px;
+      width: 100%;
+      background: #111111;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+      animation: fadeIn 0.6s ease-out;
+    }
+    #chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    #chat-header h2 {
+      margin: 0;
+      font-size: 1.6em;
+      color: #ffffff;
+      font-weight: 700;
+    }
+    #header-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    #clear-btn {
+      font-size: 0.9em;
+      border-radius: 8px;
+      padding: 8px;
+      background: #333333;
+      border: 2px solid #666666;
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s, border-color 0.3s;
+    }
+    #clear-btn:hover {
+      background: #555555;
+      border-color: #888888;
+    }
+    #chat-log {
+      height: 400px;
+      overflow-y: auto;
+      padding: 15px;
+      margin-bottom: 15px;
+      background: #1a1a1a;
+      border-radius: 12px;
+      border: 1px solid #333333;
+      scrollbar-width: thin;
+      scrollbar-color: #666666 #1a1a1a;
+    }
+    #chat-log p {
+      margin: 8px 0;
+      padding: 10px 14px;
+      border-radius: 10px;
+      animation: slideIn 0.4s ease-out;
+      line-height: 1.5;
+    }
+    #chat-log p.user {
+      background: #444444;
+      color: #ffffff;
+      margin-left: 15%;
+      margin-right: 10px;
+    }
+    #chat-log p.bot {
+      background: #222222;
+      color: #cccccc;
+      margin-right: 15%;
+      margin-left: 10px;
+    }
+    #chat-log img {
+      max-width: 100%;
+      border-radius: 10px;
+      margin-top: 10px;
+    }
+    #chat-input-container {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    #chat-input {
+      flex: 1;
+      padding: 10px;
+      border: 2px solid #444444;
+      border-radius: 10px;
+      background: #1a1a1a;
+      color: #ffffff;
+      font-size: 0.95em;
+      min-width: 0;
+    }
+    #chat-input:focus {
+      outline: none;
+      border-color: #777777;
+    }
+    #send-btn, #generate-image-btn {
+      padding: 10px 20px;
+      background: #333333;
+      border: none;
+      border-radius: 10px;
+      color: #ffffff;
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.3s;
+      white-space: nowrap;
+    }
+    #send-btn:hover, #generate-image-btn:hover {
+      background: #555555;
+    }
+    #generate-image-container {
+      display: flex;
+      flex-direction: column;
+      margin-top: 15px;
+      gap: 5px;
+    }
+    #image-prompt {
+      padding: 10px;
+      border: 2px solid #444444;
+      border-radius: 10px;
+      background: #1a1a1a;
+      color: #ffffff;
+      font-size: 0.95em;
+    }
+    #image-prompt:focus {
+      outline: none;
+      border-color: #777777;
+    }
+    @keyframes fadeIn {
+      0% { opacity: 0; transform: translateY(20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes slideIn {
+      0% { transform: translateY(10px); opacity: 0; }
+      100% { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="chat-header">
+      <h2>KYOKO-IA:GEMINI</h2>
+      <div id="header-controls">
+        <button id="clear-btn">LIMPAR GEMINI</button>
+      </div>
+    </div>
+    <div id="chat-log"></div>
+    <div id="chat-input-container">
+      <input type="text" id="chat-input" placeholder="Digite sua mensagem...">
+      <button id="send-btn">Enviar</button>
+    </div>
+  </div>
+  <script>
+    const chatLog = document.getElementById('chat-log');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const generateImageBtn = document.getElementById('generate-image-btn');
+    const imagePromptInput = document.getElementById('image-prompt');
+
+    // Substitua pela sua chave de API do Google
+    const API_KEY = 'AIzaSyA9OUkWooOr4_JZB5RX09NVoy24LIP9Sko';
+    const API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent';
+
+    // Função para enviar mensagem à API Gemini
+    async function sendMessage() {
+      const mensagem = chatInput.value.trim();
+      if (!mensagem) return;
+
+      // Adiciona mensagem do usuário ao chat
+      chatLog.innerHTML += `<p class="user">Você: ${mensagem}</p>`;
+      chatInput.value = '';
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      try {
+        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: mensagem }] }]
+          })
+        });
+
+        if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
+
+        const data = await response.json();
+        const resposta = data.candidates[0]?.content?.parts[0]?.text || 'Desculpe, não consegui entender sua solicitação.';
+        
+        chatLog.innerHTML += `<p class="bot">KYOKO: ${resposta}</p>`;
+        chatLog.scrollTop = chatLog.scrollHeight;
+      } catch (error) {
+        chatLog.innerHTML += `<p class="bot">Erro ao enviar mensagem: ${error.message}</p>`;
+        chatLog.scrollTop = chatLog.scrollHeight;
+      }
+    }
+
+    // Função para gerar imagem (placeholder, pois Gemini não gera imagens diretamente)
+    async function generateImage() {
+      const prompt = imagePromptInput.value.trim();
+      if (!prompt) {
+        alert('Por favor, forneça um prompt para a imagem!');
+        return;
+      }
+
+      chatLog.innerHTML += `<p class="bot">Aguardando imagem...</p>`;
+      chatLog.scrollTop = chatLog.scrollHeight;
+
+      try {
+        // A API Gemini não suporta geração de imagens diretamente.
+        // Aqui, simulamos uma descrição de imagem. Para geração de imagens reais,
+        // integre com uma API como Stable Diffusion ou DALL-E.
+        const response = await fetch(`${API_URL}?key=${API_KEY}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: `Descreva uma imagem baseada no prompt: ${prompt}` }] }]
+          })
+        });
+
+        if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
+
+        const data = await response.json();
+        const descricao = data.candidates[0]?.content?.parts[0]?.text || 'Não foi possível gerar uma descrição.';
+        
+        chatLog.innerHTML += `<p class="bot">KYOKO: Descrição da imagem: ${descricao}</p>`;
+        chatLog.scrollTop = chatLog.scrollHeight;
+      } catch (error) {
+        chatLog.innerHTML += `<p class="bot">Erro ao gerar imagem: ${error.message}</p>`;
+        chatLog.scrollTop = chatLog.scrollHeight;
+      }
+    }
+
+    // Event listeners
+    sendBtn.addEventListener('click', sendMessage);
+    clearBtn.addEventListener('click', () => {
+      chatLog.innerHTML = '';
+      chatInput.value = '';
+      imagePromptInput.value = '';
+    });
+    generateImageBtn.addEventListener('click', generateImage);
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
